@@ -1,57 +1,67 @@
 pipeline {
     agent any
 
-    stages {
+    environment {
+        // Centralize Tomcat path for easier edits
+        TOMCAT_HOME = 'C:\\Program Files\\Apache Software Foundation\\Tomcat 10.1'
+        FRONTEND_DIST = 'STUDENTAPI-REACT\\dist'
+        BACKEND_WAR = 'STUDENTAPI-SPRINGBOOT\\target'
+    }
 
-        // ===== FRONTEND BUILD =====
+    stages {
+        // ===== FRONTEND BUILD ===== //
         stage('Build Frontend') {
             steps {
                 dir('STUDENTAPI-REACT') {
-                    bat 'npm install'
+                    bat 'npm ci' // 'npm ci' is preferable for CI environments
                     bat 'npm run build'
                 }
             }
         }
 
-        // ===== FRONTEND DEPLOY =====
+        // ===== FRONTEND DEPLOY ===== //
         stage('Deploy Frontend to Tomcat') {
             steps {
-                bat '''
-                if exist "C:\\Program Files\\Apache Software Foundation\\Tomcat 10.1\\webapps\\reactstudentapi" (
-                    rmdir /S /Q "C:\\Program Files\\Apache Software Foundation\\Tomcat 10.1\\webapps\\reactstudentapi"
+                bat """
+                setlocal
+                if exist "${TOMCAT_HOME}\\webapps\\reactstudentapi" (
+                    rmdir /S /Q "${TOMCAT_HOME}\\webapps\\reactstudentapi"
                 )
-                mkdir "C:\\Program Files\\Apache Software Foundation\\Tomcat 10.1\\webapps\\reactstudentapi"
-                xcopy /E /I /Y STUDENTAPI-REACT\\dist\\* "C:\\Program Files\\Apache Software Foundation\\Tomcat 10.1\\webapps\\reactstudentapi"
-                '''
+                mkdir "${TOMCAT_HOME}\\webapps\\reactstudentapi"
+                xcopy /E /I /Y ${FRONTEND_DIST}\\* "${TOMCAT_HOME}\\webapps\\reactstudentapi"
+                endlocal
+                """
             }
         }
 
-        // ===== BACKEND BUILD =====
+        // ===== BACKEND BUILD ===== //
         stage('Build Backend') {
             steps {
                 dir('STUDENTAPI-SPRINGBOOT') {
-                    bat 'mvn clean package'
+                    bat 'mvn -B clean package' // '-B' for batch mode (CI best practice)
                 }
             }
         }
 
-        // ===== BACKEND DEPLOY =====
+        // ===== BACKEND DEPLOY ===== //
         stage('Deploy Backend to Tomcat') {
             steps {
-                bat '''
-                if exist "C:\\Program Files\\Apache Software Foundation\\Tomcat 10.1\\webapps\\springbootstudentapi.war" (
-                    del /Q "C:\\Program Files\\Apache Software Foundation\\Tomcat 10.1\\webapps\\springbootstudentapi.war"
+                bat """
+                setlocal
+                if exist "${TOMCAT_HOME}\\webapps\\springbootstudentapi.war" (
+                    del /Q "${TOMCAT_HOME}\\webapps\\springbootstudentapi.war"
                 )
-                if exist "C:\\Program Files\\Apache Software Foundation\\Tomcat 10.1\\webapps\\springbootstudentapi" (
-                    rmdir /S /Q "C:\\Program Files\\Apache Software Foundation\\Tomcat 10.1\\webapps\\springbootstudentapi"
+                if exist "${TOMCAT_HOME}\\webapps\\springbootstudentapi" (
+                    rmdir /S /Q "${TOMCAT_HOME}\\webapps\\springbootstudentapi"
                 )
-                copy "STUDENTAPI-SPRINGBOOT\\target\\*.war" "C:\\Program Files\\Apache Software Foundation\\Tomcat 10.1\\webapps\\"
-                '''
+                for %%F in (${BACKEND_WAR}\\*.war) do (
+                    copy "%%F" "${TOMCAT_HOME}\\webapps\\springbootstudentapi.war"
+                )
+                endlocal
+                """
             }
         }
-
     }
-
     post {
         success {
             echo 'Deployment Successful!'
