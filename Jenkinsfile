@@ -3,7 +3,7 @@ pipeline {
 
     stages {
 
-        // ===== FRONTEND BUILD =====//
+        // ===== FRONTEND BUILD =====
         stage('Build Frontend') {
             steps {
                 dir('STUDENTAPI-REACT') {
